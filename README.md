@@ -1,8 +1,22 @@
 # AIM Partner Employer Job Tracker
 
-A standing, auto-updating view of **open job requisitions at the employers that hire AIM graduates**, organized by campus. It exists so the Industry Partnerships team has one place to see what every partner employer is currently hiring for — and what changed since the last check — instead of visiting dozens of careers sites by hand.
+A standing, auto-updating view of **open job requisitions at the employers that hire AIM graduates**, organized by campus. It gives the Industry Partnerships team one link to see what every partner employer is currently hiring for — and what changed since the last check — instead of visiting dozens of careers sites by hand.
 
-**Current scope:** Pilot on the **AMA campus (AIM – Duluth, GA / Atlanta metro)** — 54 partner employers drawn from the 2026 Hires YTD spreadsheet. The same machinery extends to the other 13 campuses without rework.
+**Live link:** https://learjet84.github.io/aim-tracker/ (landing page → pick a campus)
+
+**Scope:** Rolling out to all AIM campuses. Live now: **AMA (Duluth, GA / Atlanta)** and **AMM (Manassas, VA)**, with the remaining campuses being added. Employer lists are drawn from the 2026 Hires YTD spreadsheet.
+
+---
+
+## Catchment prioritization (within ~100 miles)
+
+Each campus has a ~100-mile catchment. Postings whose location falls inside that radius are:
+
+- badged **📍 ~100 mi**,
+- floated to the **top of each employer's list**, and
+- collected in a **"Within ~100 miles of campus"** section at the very top of the dashboard, plus a header count.
+
+Everything relevant is still listed — local roles are simply surfaced first to show priority. Proximity is inferred from the city/state in each posting's title or snippet against a curated city list per campus, so it applies to individual postings; full careers-board links (no single city) aren't geo-pinned.
 
 ---
 
@@ -10,73 +24,76 @@ A standing, auto-updating view of **open job requisitions at the employers that 
 
 | File | What it is |
 | --- | --- |
-| `dashboard_AMA.html` | The dashboard. Open in any browser. Employers grouped and sorted by grad-hire volume, each with click-through links to live openings and change badges. |
-| `site/index.html` | A copy of the dashboard named for web hosting (GitHub Pages). This is the file that becomes the shareable team link. |
-| `openings_AMA.csv` | Flat export of every link with its change status — for pivoting, filtering, or pasting into a deck. |
-| `snapshots/AMA_<date>.json` | One file per run. This is the tracker's memory; comparing the newest two is what powers new/closed detection. |
-| `ama_employers.json` | The master list of the 54 AMA employers and their YTD hire counts. |
-| `pipeline.py` | The engine: classifies links, writes the snapshot, diffs against the prior run, rebuilds the dashboard + CSV. |
-| `RUNBOOK.md` | Operator steps for a run (used by the automated job). |
-| `GITHUB_SETUP.md` | One-time steps to publish the dashboard to a shareable link. |
+| `site/index.html` | The multi-campus **landing page** (the shared link). Auto-generated. |
+| `site/<code>.html` | Per-campus dashboard (e.g. `ama.html`, `amm.html`). Auto-generated copies of the dashboards. |
+| `dashboard_<CODE>.html` | The working dashboard for a campus. |
+| `openings_<CODE>.csv` | Flat export of every link + change status + a `within_100mi` column. |
+| `snapshots/<CODE>_<date>.json` | One file per run — the tracker's memory; comparing the newest two powers new/closed detection. |
+| `<code>_employers.json` | The master employer list for that campus (name + YTD hires). |
+| `employer_cache.json` | Global cache of already-pulled employer results, so shared employers are searched once and reused across campuses. |
+| `pipeline.py` | Engine: classifies links, tags catchment, snapshots, diffs, renders dashboard + CSV. |
+| `assemble.py` | Builds `raw_pull_<CODE>.json` from the cache and reports which employers still need searching. |
+| `build_index.py` | Rebuilds the landing page + per-campus `site/*.html`. |
+| `RUNBOOK.md` / `GITHUB_SETUP.md` | Operator steps and one-time publishing setup. |
 
 ---
 
-## How it works
+## How a run works
 
-Each run does five things:
+For each campus:
 
-1. **Pull** — For every employer in `ama_employers.json`, a live web search (via Nimble) finds current openings across the employer's own careers board, its applicant-tracking system (Workday, Greenhouse, iCIMS, etc.), and major aggregators.
-2. **Classify** — Each result is tagged: **req** (an individual posting), **careers board** (the employer's full openings page), or **aggregator** (Indeed/LinkedIn/ZipRecruiter/etc.).
-3. **Snapshot** — Results are saved as a timestamped file in `snapshots/`.
-4. **Diff** — The new snapshot is compared to the previous one. Anything not seen last time is flagged **NEW**; anything present last time but gone now is flagged **CLOSED** (likely filled or pulled).
-5. **Render** — The dashboard and CSV are rebuilt with the latest data and change badges.
+1. **Pull** — for every employer, a live web search (Nimble) finds current openings across the employer's careers board, ATS (Workday, Greenhouse, iCIMS, Breezy, etc.), and aggregators. Shared employers are reused from `employer_cache.json` so they're searched once.
+2. **Classify & geo-tag** — each link is tagged **req / careers board / aggregator**, and flagged **📍 within ~100 mi** if its location is in the campus catchment.
+3. **Snapshot** — results saved as a timestamped file in `snapshots/`.
+4. **Diff** — compared to the previous snapshot: links not seen last time are **NEW**; links gone since last time are **CLOSED** (likely filled/pulled).
+5. **Render** — dashboards + CSV rebuilt; then `build_index.py` rebuilds the landing page.
 
-### Reading the dashboard
-- **Green NEW badge** — a posting/link that appeared since the last run.
-- **Red CLOSED badge** (struck through) — a posting that disappeared since the last run.
-- **req / careers board / aggregator** — the kind of link, so you know whether you're clicking a single job or a full board.
-- The header shows totals: employers tracked, live links, and new/closed counts for the run.
+### Reading a dashboard
+- **📍 ~100 mi** (teal) — posting within the campus catchment; these sort to the top.
+- **Green NEW** / **Red CLOSED** badges — change since the last run (from the 2nd run on).
+- **req / careers board / aggregator** — what kind of link it is.
+- Header stats: employers, live links, within ~100 mi, new, closed.
 
 ---
 
 ## Update cadence
 
-- **Automatic:** every **Monday, Wednesday, and Friday at ~6:00 AM** local time.
-- Change tracking (new/closed) is meaningful from the **second** run onward — the first run only sets the baseline.
-- Automated runs happen while the Claude desktop app is open. If the app is closed when a run is due, it runs the next time the app is opened.
-- After each run, **publish the update** so the team link reflects it: drag `site/index.html` into the GitHub repo on the web, or in GitHub Desktop click **Commit → Push** (about two clicks). See `GITHUB_SETUP.md`.
-
----
+- **Automatic:** every **Monday, Wednesday, and Friday ~6:00 AM** local. The job loops **every campus** that has an employer list, rebuilds all dashboards + the landing page.
+- Change tracking is meaningful from the **second** run onward (the first sets a baseline).
+- Runs happen while the Claude desktop app is open; if it's closed when due, it runs on next launch.
 
 ## Running an on-demand report
 
-The data pull requires the Nimble connection, so on-demand runs go through Claude (not by double-clicking a file). Two ways:
+The pull needs the Nimble connection, so on-demand runs go through Claude:
 
-1. **From the app:** open the **Scheduled** section in the sidebar, find **aim-ama-job-tracker**, and click **Run now**.
-2. **Just ask:** tell Claude *"run the AMA job tracker now."*
+1. **From the app:** sidebar → **Scheduled** → **aim-ama-job-tracker** → **Run now**.
+2. **Just ask:** "run the job tracker now" (optionally name a campus).
 
-Either one re-pulls all 54 employers, updates the snapshot, recomputes new/closed against the last run, and rebuilds the dashboard + CSV. Then publish as above to push it live.
+> `pipeline.py` alone only re-renders from the latest pull; it does **not** fetch new jobs — fetching is the Nimble step Claude runs.
 
-> `pipeline.py` on its own only re-processes the most recent pull (re-renders the dashboard from existing data). It does **not** fetch new jobs — fetching is the Nimble step that Claude runs.
+## Publishing updates
 
----
+After a run, the changed files in `site/` need to be pushed to the `aim-tracker` GitHub repo so the live link refreshes:
+- **Web:** repo → Add file → Upload files → drag the `site/` files → Commit.
+- **GitHub Desktop:** Commit → Push.
+- Or ask Claude to drive the upload in the browser.
 
-## Sharing the dashboard
-
-The dashboard is hosted as a web page so anyone can open it at a link. Setup is in `GITHUB_SETUP.md`; the team link looks like `https://learjet84.github.io/aim-tracker/`. On free GitHub the page is public-but-unlisted — keep the link internal. Hard access control would require a different host.
+Free GitHub Pages serves a public-but-unlisted URL — keep the link internal. Hard access control would need a different host.
 
 ---
 
 ## Data integrity
 
-- **No fabricated data.** Every link comes from a live search result. If the Nimble connection is expired, a run stops and reports it rather than inventing jobs.
-- **Coverage:** 48 of 54 AMA employers resolve to a real careers board or postings. Six small shops (Airenelle, Ellison Manufacturing, Fullard Flight, AirStar Flight Support, Bynum & Sons, Tactical Workforce Solutions) don't surface a dedicated jobs page and are flagged in the dashboard for manual confirmation.
-- **Fidelity:** employer, title, location, and link are reliable. Exact requisition IDs and posting dates are captured only where the source exposes them. A later high-fidelity pass (dedicated Workday/Greenhouse agents for top employers) can tighten this.
+- **No fabricated data.** Every link comes from a live search result. If Nimble is disconnected/expired, a run stops and reports it rather than inventing jobs.
+- **Coverage:** most employers resolve to a real careers board or postings; tiny shops without an applicant-tracking system are annotated for manual follow-up.
+- **Fidelity:** employer, title, location, and link are reliable. Exact req IDs and posting dates are captured only where the source exposes them.
 
 ---
 
-## Campus codes (for rollout)
+## Campus codes (authoritative, from Affiliate Schools doc rev 08/2022)
 
-AMA = Duluth GA (Atlanta) · AMC = Charlotte NC · AMD = Irving TX · AMH = Houston TX · AMI = Indianapolis IN · AMK = Kansas City MO · AML = Las Vegas NV · AMM = Manassas VA · AMN = Norfolk VA · AMO = Casselberry FL (Orlando) · AMP = Philadelphia PA · AMS = Fremont CA · AMT = Teterboro NJ · AMW = Chicago IL. *(AMX appears in the hires spreadsheet but not the affiliate-schools doc — confirm its location before adding.)*
+AMA = Duluth GA (Atlanta) · AMC = Charlotte NC · AMD = Irving TX · AMH = Houston TX · AMI = Indianapolis IN ·
+AMK = Kansas City MO · AML = Las Vegas NV · AMM = Manassas VA · AMN = Norfolk VA · AMO = Casselberry FL (Orlando) ·
+AMP = Philadelphia PA · AMS = Fremont CA · AMT = Teterboro NJ · AMW = Chicago IL. *(AMX appears in the hires spreadsheet but not the affiliate doc — confirm its location before adding.)*
 
-To add a campus: build its `<CODE>_employers.json`, run the same pull, then `python3 pipeline.py <CODE>`. Each campus keeps its own snapshot history and dashboard.
+To add a ca
