@@ -4,7 +4,7 @@ A standing, auto-updating view of **open job requisitions at the employers that 
 
 **Live link:** https://learjet84.github.io/aim-tracker/ (landing page → pick a campus)
 
-**Scope:** Rolling out to all AIM campuses. Live now: **AMA (Duluth, GA / Atlanta)** and **AMM (Manassas, VA)**, with the remaining campuses being added. Employer lists are drawn from the 2026 Hires YTD spreadsheet.
+**Scope:** All **15 AIM campuses are live** (AMA–AMX) — one landing page links to every campus dashboard. Employer lists are drawn from the 2026 Hires YTD spreadsheet.
 
 ---
 
@@ -94,6 +94,6 @@ Free GitHub Pages serves a public-but-unlisted URL — keep the link internal. H
 
 AMA = Duluth GA (Atlanta) · AMC = Charlotte NC · AMD = Irving TX · AMH = Houston TX · AMI = Indianapolis IN ·
 AMK = Kansas City MO · AML = Las Vegas NV · AMM = Manassas VA · AMN = Norfolk VA · AMO = Casselberry FL (Orlando) ·
-AMP = Philadelphia PA · AMS = Fremont CA · AMT = Teterboro NJ · AMW = Chicago IL. *(AMX appears in the hires spreadsheet but not the affiliate doc — confirm its location before adding.)*
+AMP = Philadelphia PA · AMS = Fremont CA · AMT = Hasbrouck Heights NJ · AMW = Chicago IL · AMX = Phoenix AZ.
 
-To add a ca
+To add a campus: build its `<code>_employers.json`, run the pull → `python3 pipeline.py <CODE>` → `python3 build_index.py`.
